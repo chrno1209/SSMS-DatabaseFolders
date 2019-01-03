@@ -208,7 +208,7 @@ namespace DatabaseFolders
                             case "Server/DatabasesFolder":
                                 var settings = GetSettings();
 
-                                var dbFolderCount = ReorganizeDatabaseNodes(node, DbFoldersTagString, null, settings);
+                                var dbFolderCount = ReorganizeDatabaseNodes(node, DbFoldersTagString, PackageResources.folder_database, settings);
                                 if (expand && dbFolderCount == 1)
                                 {
                                     node.LastNode.Expand();
