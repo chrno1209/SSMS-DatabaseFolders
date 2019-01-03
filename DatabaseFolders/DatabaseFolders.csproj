@@ -73,6 +73,7 @@
     <None Include="packages.config">
       <SubType>Designer</SubType>
     </None>
+    <None Include="SkipLoading.2017.reg" />
     <None Include="source.extension.vsixmanifest">
       <SubType>Designer</SubType>
     </None>
