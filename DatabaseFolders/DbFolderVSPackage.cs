@@ -48,7 +48,10 @@ namespace DatabaseFolders
         /// </summary>
         public const string PackageGuidString = "abf4426e-91da-4791-8ca8-f01b694095d8";
 
-        public const string DbFoldersTagString = "DbFolders";
+        private const string DbFoldersTagString = "DbFolders";
+        private const string DbFolderIconKey = "DbFolderIcon";
+        private readonly string[] SystemDatabaseFolders = new[] { "System Databases", "Database Snapshots" };
+        private readonly string[] IgnorePatterns = new[] { "*" };
 
         /// <summary>
         /// Initializes a new instance of the <see cref="DbFolderVSPackage"/> class.
@@ -106,16 +109,28 @@ namespace DatabaseFolders
                     var treeView = GetObjectExplorerTreeView();
                     if (treeView != null)
                     {
+                        // attach event to the treeview
                         treeView.BeforeExpand += new TreeViewCancelEventHandler(ObjectExplorerTreeViewBeforeExpandCallback);
                         treeView.AfterExpand += new TreeViewEventHandler(ObjectExplorerTreeViewAfterExpandCallback);
+
+                        // add icon
+                        if (treeView.ImageList.Images[DbFolderIconKey] == null)
+                        {
+                            treeView.ImageList.Images.Add(DbFolderIconKey, PackageResources.folder_database);
+                        }
+
+                        // stop timer, we only need to run once
                         timer.Stop();
                     }
                 }
                 catch (Exception ex)
                 {
+                    // sometime the time to wait for ssms initialize is long, hence exception can be thrown
+                    // all we need is to wait here
+                    // maximum wait time is 10 seconds
                     runCount++;
 
-                    if (runCount == 10)
+                    if (runCount == 20)
                     {
                         timer.Stop();
                     }
@@ -198,7 +213,7 @@ namespace DatabaseFolders
             try
             {
                 // uses node.Tag to prevent this running again on already orgainsed db folder
-                if (node != null && node.Parent != null && (node.Tag == null || node.Tag.ToString() != DbFoldersTagString))
+                if (node?.Parent != null && (node.Tag == null || node.Tag.ToString() != DbFoldersTagString))
                 {
                     var urnPath = GetNodeUrnPath(node);
                     if (!string.IsNullOrEmpty(urnPath))
@@ -208,7 +223,7 @@ namespace DatabaseFolders
                             case "Server/DatabasesFolder":
                                 var settings = GetSettings();
 
-                                var dbFolderCount = ReorganizeDatabaseNodes(node, DbFoldersTagString, PackageResources.folder_database, settings);
+                                var dbFolderCount = ReorganizeDatabaseNodes(node, DbFoldersTagString, settings);
                                 if (expand && dbFolderCount == 1)
                                 {
                                     node.LastNode.Expand();
@@ -250,9 +265,9 @@ namespace DatabaseFolders
                 foreach (JProperty folder in folders.Properties())
                 {
                     var data = new List<string>();
-                    if (folder.Value is JArray)
+                    if (folder.Value is JArray array)
                     {
-                        data = ((JArray)folder.Value).Values<string>().ToList();
+                        data = array.Values<string>().ToList();
                     }
 
                     settings.Add(folder.Name, data);
@@ -264,8 +279,7 @@ namespace DatabaseFolders
 
         private bool GetNodeExpanding(TreeNode node)
         {
-            var lazyNode = node as ILazyLoadingNode;
-            if (lazyNode != null)
+            if (node is ILazyLoadingNode lazyNode)
                 return lazyNode.Expanding;
             else
                 return false;
@@ -274,25 +288,20 @@ namespace DatabaseFolders
         private string GetNodeUrnPath(TreeNode node)
         {
             var ni = GetNodeInformation(node);
-            if (ni != null)
-                return ni.UrnPath;
-            else
-                return null;
+            return ni?.UrnPath;
         }
 
         private INodeInformation GetNodeInformation(TreeNode node)
         {
             INodeInformation result = null;
-            IServiceProvider serviceProvider = node as IServiceProvider;
-            if (serviceProvider != null)
+            if (node is IServiceProvider serviceProvider)
             {
                 result = (serviceProvider.GetService(typeof(INodeInformation)) as INodeInformation);
             }
             return result;
         }
 
-        private readonly string[] SystemDatabaseFolders = new[] { "System Databases", "Database Snapshots" };
-        private readonly string[] IgnorePatterns = new[] { "*" };
+        
         private string GetDatabaseFolder(TreeNode node, Dictionary<string, List<string>> settings)
         {
             var ni = GetNodeInformation(node);
@@ -319,7 +328,7 @@ namespace DatabaseFolders
             return null;
         }
 
-        public int ReorganizeDatabaseNodes(TreeNode node, string nodeTag, Icon icon, Dictionary<string, List<string>> settings)
+        public int ReorganizeDatabaseNodes(TreeNode node, string nodeTag, Dictionary<string, List<string>> settings)
         {
             if (node.Nodes.Count <= 1)
                 return 0;
@@ -350,16 +359,13 @@ namespace DatabaseFolders
                 //create folder node
                 if (folderTreeNodeToRender.All(s => s.Name != folder) && !node.Nodes.ContainsKey(folder))
                 {
-                    TreeNode folderNode = new DbFolderTreeNode(node, icon);
+                    TreeNode folderNode = new DbFolderTreeNode(node);
                     folderNode.Name = folder;
                     folderNode.Text = folder;
                     folderNode.Tag = nodeTag;
 
-                    if (icon == null)
-                    {
-                        folderNode.ImageIndex = node.ImageIndex;
-                        folderNode.SelectedImageIndex = node.ImageIndex;
-                    }
+                    folderNode.ImageKey = DbFolderIconKey;
+                    folderNode.SelectedImageKey = DbFolderIconKey;
 
                     folderTreeNodeToRender.Add(folderNode);
                 }
@@ -373,6 +379,7 @@ namespace DatabaseFolders
                 folderNodeList.Add(childNode);
             }
 
+            //render db folder
             foreach (var folderNode in folderTreeNodeToRender)
             {
                 node.Nodes.Add(folderNode);

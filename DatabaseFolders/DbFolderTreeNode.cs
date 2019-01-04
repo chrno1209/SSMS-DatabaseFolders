@@ -5,59 +5,44 @@ using System.Drawing;
 namespace DatabaseFolders
 {
     internal class DbFolderTreeNode : HierarchyTreeNode, INodeWithMenu, IServiceProvider
-        //IServiceProvider causes the SchemaFolders.DoReorganization to run on itself
     {
-        object parent;
-        private Icon icon;
+        readonly object _parent;
 
-        public DbFolderTreeNode(object o, Icon icon = null)
+        public DbFolderTreeNode(object o)
         {
-            parent = o;
-            this.icon = icon;
+            _parent = o;
         }
 
-        public override Icon Icon
-        {
-            get { return this.icon ?? (parent as INodeWithIcon).Icon; }
-        }
+        public override Icon Icon => (_parent as INodeWithIcon)?.Icon;
 
-        public override Icon SelectedIcon
-        {
-            get { return this.icon ?? (parent as INodeWithIcon).SelectedIcon; }
-        }
+        public override Icon SelectedIcon => (_parent as INodeWithIcon)?.SelectedIcon;
 
         public override bool ShowPolicyHealthState
         {
-            get
-            {
-                return false;
-            }
+            get => false;
             set
             {
                 //throw new NotImplementedException();
             }
         }
 
-        public override int State
-        {
-            get { return (parent == null) ? 0 : (parent as INodeWithIcon).State; }
-        }
+        public override int State => (_parent as INodeWithIcon)?.State ?? 0;
 
 
         public object GetService(Type serviceType)
         {
-            return (parent == null) ? null : (parent as IServiceProvider).GetService(serviceType);
+            return (_parent as IServiceProvider)?.GetService(serviceType);
         }
 
 
         public void DoDefaultAction()
         {
-            (parent as INodeWithMenu).DoDefaultAction();
+            (_parent as INodeWithMenu)?.DoDefaultAction();
         }
 
         public void ShowContextMenu(Point screenPos)
         {
-            (parent as INodeWithMenu).ShowContextMenu(screenPos);
+            (_parent as INodeWithMenu)?.ShowContextMenu(screenPos);
         }
 
     }
