@@ -2,7 +2,7 @@
 using System;
 using System.Drawing;
 
-namespace DatabaseFolders
+namespace DatabaseFolders.Models
 {
     internal class DbFolderTreeNode : HierarchyTreeNode, INodeWithMenu, IServiceProvider
     {

@@ -54,9 +54,9 @@
           If you do not want an image next to your command, remove the Icon node /> -->
       <Button guid="guidDatabaseFolderVSPackageCmdSet" id="DbFolderCommandId" priority="0x0100" type="Button">
         <Parent guid="guidDatabaseFolderVSPackageCmdSet" id="MyMenuGroup" />
-        <Icon guid="guidImages" id="bmpPic1" />
+        <Icon guid="guidImages2" id="bmpPic1" />
         <Strings>
-          <ButtonText>Invoke DbFolderCommand</ButtonText>
+          <ButtonText>Database Folder Options...</ButtonText>
         </Strings>
       </Button>
     </Buttons>
@@ -69,6 +69,7 @@
             inside a button definition. An important aspect of this declaration is that the element id
             must be the actual index (1-based) of the bitmap inside the bitmap strip. -->
       <Bitmap guid="guidImages" href="Resources\DbFolderCommand.png" usedList="bmpPic1, bmpPic2, bmpPicSearch, bmpPicX, bmpPicArrows, bmpPicStrikethrough"/>
+      <Bitmap guid="guidImages2" href="Resources\folder_database.ico" usedList="bmpPic1"/>
     </Bitmaps>
   </Commands>
 
@@ -89,6 +90,9 @@
       <IDSymbol name="bmpPicX" value="4" />
       <IDSymbol name="bmpPicArrows" value="5" />
       <IDSymbol name="bmpPicStrikethrough" value="6" />
+    </GuidSymbol>
+    <GuidSymbol name="guidImages2" value="{9A2B570A-6DB6-49D5-AD33-5CE90B50858D}" >
+      <IDSymbol name="bmpPic1" value="1" />
     </GuidSymbol>
   </Symbols>
 </CommandTable>

@@ -1,19 +1,12 @@
-﻿using Microsoft.SqlServer.Management.UI.VSIntegration.ObjectExplorer;
+﻿using DatabaseFolders.Services;
+using Microsoft.SqlServer.Management.UI.VSIntegration.ObjectExplorer;
 using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Shell.Interop;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 using System;
-using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
-using System.Drawing;
-using System.IO;
-using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
-using System.Text.RegularExpressions;
 using System.Windows.Forms;
-using IServiceProvider = System.IServiceProvider;
 using Timer = System.Windows.Forms.Timer;
 
 namespace DatabaseFolders
@@ -48,10 +41,9 @@ namespace DatabaseFolders
         /// </summary>
         public const string PackageGuidString = "abf4426e-91da-4791-8ca8-f01b694095d8";
 
-        private const string DbFoldersTagString = "DbFolders";
-        private const string DbFolderIconKey = "DbFolderIcon";
-        private readonly string[] SystemDatabaseFolders = new[] { "System Databases", "Database Snapshots" };
-        private readonly string[] IgnorePatterns = new[] { "*" };
+        public const string DbFoldersTagString = "DbFolders";
+        public const string DbFolderIconKey = "DbFolderIcon";
+        private ObjectExplorerService _objectExplorerService;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="DbFolderVSPackage"/> class.
@@ -76,6 +68,7 @@ namespace DatabaseFolders
             base.Initialize();
             DbFolderCommand.Initialize(this);
 
+            this._objectExplorerService = new ObjectExplorerService();
             AttachTreeViewEvents();
 
             AddSkipLoading();
@@ -159,7 +152,7 @@ namespace DatabaseFolders
             // Wait for the async node expand to finish or we could miss nodes
             try
             {
-                if (GetNodeExpanding(e.Node))
+                if (this._objectExplorerService.GetNodeExpanding(e.Node))
                 {
                     e.Node.TreeView.Cursor = Cursors.AppStarting;
 
@@ -168,7 +161,7 @@ namespace DatabaseFolders
                     EventHandler nodeExpandingEvent = null;
                     nodeExpandingEvent = (object o, EventArgs e2) =>
                     {
-                        if (!GetNodeExpanding(e.Node))
+                        if (!this._objectExplorerService.GetNodeExpanding(e.Node))
                         {
                             nodeExpanding.Tick -= nodeExpandingEvent;
                             nodeExpanding.Stop();
@@ -197,7 +190,7 @@ namespace DatabaseFolders
                 if (e.Node.GetNodeCount(false) == 1)
                     return;
 
-                if (GetNodeExpanding(e.Node))
+                if (this._objectExplorerService.GetNodeExpanding(e.Node))
                 {
                     ReorganizeFolders(e.Node);
                 }
@@ -215,15 +208,15 @@ namespace DatabaseFolders
                 // uses node.Tag to prevent this running again on already orgainsed db folder
                 if (node?.Parent != null && (node.Tag == null || node.Tag.ToString() != DbFoldersTagString))
                 {
-                    var urnPath = GetNodeUrnPath(node);
+                    var urnPath = this._objectExplorerService.GetNodeUrnPath(node);
                     if (!string.IsNullOrEmpty(urnPath))
                     {
                         switch (urnPath)
                         {
                             case "Server/DatabasesFolder":
-                                var settings = GetSettings();
+                                var settings = SettingService.GetSettings();
 
-                                var dbFolderCount = ReorganizeDatabaseNodes(node, DbFoldersTagString, settings);
+                                var dbFolderCount = this._objectExplorerService.ReorganizeDatabaseNodes(node, DbFoldersTagString, settings);
                                 if (expand && dbFolderCount == 1)
                                 {
                                     node.LastNode.Expand();
@@ -239,167 +232,7 @@ namespace DatabaseFolders
             }
         }
 
-        private Dictionary<string, List<string>> GetSettings()
-        {
-            var settings = new Dictionary<string, List<string>>();
-            var location = System.Reflection.Assembly.GetExecutingAssembly().Location;
-            var path = Path.Combine(Path.GetDirectoryName(location), "Settings.json");
-
-            if (!File.Exists(path))
-            {
-                using (var writer = File.CreateText(path))
-                {
-                    var newSettings = JObject.Parse("{ \"folders\": {} }");
-                    writer.Write(newSettings.ToString(Newtonsoft.Json.Formatting.Indented));
-                }
-
-                return settings;
-            }
-
-            var json = JObject.Load(
-                new JsonTextReader(File.OpenText(path)));
-
-            if (json["folders"] != null)
-            {
-                var folders = (JObject)json["folders"];
-                foreach (JProperty folder in folders.Properties())
-                {
-                    var data = new List<string>();
-                    if (folder.Value is JArray array)
-                    {
-                        data = array.Values<string>().ToList();
-                    }
-
-                    settings.Add(folder.Name, data);
-                }
-            }
-
-            return settings;
-        }
-
-        private bool GetNodeExpanding(TreeNode node)
-        {
-            if (node is ILazyLoadingNode lazyNode)
-                return lazyNode.Expanding;
-            else
-                return false;
-        }
-
-        private string GetNodeUrnPath(TreeNode node)
-        {
-            var ni = GetNodeInformation(node);
-            return ni?.UrnPath;
-        }
-
-        private INodeInformation GetNodeInformation(TreeNode node)
-        {
-            INodeInformation result = null;
-            if (node is IServiceProvider serviceProvider)
-            {
-                result = (serviceProvider.GetService(typeof(INodeInformation)) as INodeInformation);
-            }
-            return result;
-        }
-
         
-        private string GetDatabaseFolder(TreeNode node, Dictionary<string, List<string>> settings)
-        {
-            var ni = GetNodeInformation(node);
-            if (ni != null)
-            {
-                if (!SystemDatabaseFolders.Contains(node.Text))
-                {
-                    var folder = string.Empty;
-                    foreach (var setting in settings)
-                    {
-                        foreach (var pattern in setting.Value)
-                        {
-                            if (string.IsNullOrEmpty(folder) && !string.IsNullOrEmpty(pattern) && !IgnorePatterns.Contains(pattern) && Regex.IsMatch(node.Text, pattern, RegexOptions.Singleline & RegexOptions.IgnoreCase, TimeSpan.FromSeconds(5)))
-                            {
-                                folder = setting.Key;
-                                break;
-                            }
-                        }
-                    }
-
-                    return folder;
-                }
-            }
-            return null;
-        }
-
-        public int ReorganizeDatabaseNodes(TreeNode node, string nodeTag, Dictionary<string, List<string>> settings)
-        {
-            if (node.Nodes.Count <= 1)
-                return 0;
-
-            node.TreeView.BeginUpdate();
-
-            //can't move nodes while iterating forward over them
-            //create list of nodes to move then perform the update
-
-            var dbFolders = new Dictionary<string, List<TreeNode>>();
-            var folderTreeNodeToRender = new List<TreeNode>();
-
-            foreach (TreeNode childNode in node.Nodes)
-            {
-                //skip folder node folders but make sure they are in folders list
-                if (childNode.Tag != null && childNode.Tag.ToString() == nodeTag)
-                {
-                    if (!dbFolders.ContainsKey(childNode.Name))
-                        dbFolders.Add(childNode.Name, new List<TreeNode>());
-
-                    continue;
-                }
-                var folder = GetDatabaseFolder(childNode, settings);
-
-                if (string.IsNullOrEmpty(folder))
-                    continue;
-
-                //create folder node
-                if (folderTreeNodeToRender.All(s => s.Name != folder) && !node.Nodes.ContainsKey(folder))
-                {
-                    TreeNode folderNode = new DbFolderTreeNode(node);
-                    folderNode.Name = folder;
-                    folderNode.Text = folder;
-                    folderNode.Tag = nodeTag;
-
-                    folderNode.ImageKey = DbFolderIconKey;
-                    folderNode.SelectedImageKey = DbFolderIconKey;
-
-                    folderTreeNodeToRender.Add(folderNode);
-                }
-
-                //add node to folder list
-                if (!dbFolders.TryGetValue(folder, out var folderNodeList))
-                {
-                    folderNodeList = new List<TreeNode>();
-                    dbFolders.Add(folder, folderNodeList);
-                }
-                folderNodeList.Add(childNode);
-            }
-
-            //render db folder
-            foreach (var folderNode in folderTreeNodeToRender)
-            {
-                node.Nodes.Add(folderNode);
-            }
-
-            //move nodes to folder node
-            foreach (string folder in dbFolders.Keys)
-            {
-                var folderNode = node.Nodes[folder];
-                foreach (TreeNode childNode in dbFolders[folder])
-                {
-                    node.Nodes.Remove(childNode);
-                    folderNode.Nodes.Add(childNode);
-                }
-            }
-
-            node.TreeView.EndUpdate();
-
-            return dbFolders.Count;
-        }
         #endregion
     }
 }

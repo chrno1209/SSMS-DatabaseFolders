@@ -57,15 +57,31 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="DbFolderTreeNode.cs" />
+    <Compile Include="Helpers\StringHelper.cs" />
+    <Compile Include="Models\DbFolderTreeNode.cs" />
     <Compile Include="DbFolderVSPackage.cs" />
     <Compile Include="DbFolderCommand.cs" />
+    <Compile Include="Editors\AddFolder.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Editors\AddFolder.Designer.cs">
+      <DependentUpon>AddFolder.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Editors\OptionEditor.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Editors\OptionEditor.Designer.cs">
+      <DependentUpon>OptionEditor.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Models\DbFolderSetting.cs" />
     <Compile Include="PackageResources.Designer.cs">
       <AutoGen>True</AutoGen>
       <DesignTime>True</DesignTime>
       <DependentUpon>PackageResources.resx</DependentUpon>
     </Compile>
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Services\ObjectExplorerService.cs" />
+    <Compile Include="Services\SettingService.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="app.config" />
@@ -82,6 +98,7 @@
     <None Include="Resources\folder_database.ico" />
     <VSCTCompile Include="DbFolderVSPackage.vsct">
       <ResourceName>Menus.ctmenu</ResourceName>
+      <SubType>Designer</SubType>
     </VSCTCompile>
     <Content Include="Microsoft.VisualStudio.Shell.15.0.dll">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
@@ -204,6 +221,12 @@
     <Analyzer Include="..\packages\Microsoft.VisualStudio.Threading.Analyzers.15.8.122\analyzers\cs\Microsoft.VisualStudio.Threading.Analyzers.dll" />
   </ItemGroup>
   <ItemGroup>
+    <EmbeddedResource Include="Editors\AddFolder.resx">
+      <DependentUpon>AddFolder.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Editors\OptionEditor.resx">
+      <DependentUpon>OptionEditor.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="PackageResources.resx">
       <Generator>ResXFileCodeGenerator</Generator>
       <LastGenOutput>PackageResources.Designer.cs</LastGenOutput>
